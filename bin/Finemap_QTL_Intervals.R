@@ -82,20 +82,3 @@ pr_roi_ld <- roi_ld %>%
 
 readr::write_tsv(pr_roi_ld, path = glue::glue("{save_name}_prLD_df.tsv"))
 
-peak_roi_marker <- dplyr::filter(pr_roi_ld, POS == peakp)
-
-peak_roi_marker
-
-ld_plot <- ggplot(pr_roi_ld) +
-  aes(x = POS/1e6) +
-  geom_point(aes(fill = ld_r2, y = value), shape = 23, size = 3) +
-  geom_point(aes(y = value), shape = 23, size = 3, fill = "red",
-             data = peak_roi_marker) +
-  scale_fill_viridis_c(name = "R2") +
-  theme_bw(15)+
-  labs(x = "Genomic Position (Mb)",
-       y = expression(-log[10](italic(p))))
-
-ggsave(ld_plot, filename = glue::glue("{save_name}_finemap_plot.pdf"),
-       height = 4,
-       width = 12)
