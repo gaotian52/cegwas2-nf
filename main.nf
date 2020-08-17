@@ -23,6 +23,9 @@ params.ci_size   = 150
 params.fix_names = "fix"
 params.help 	 = null
 params.R_libpath="/projects/b1059/software/R_lib_3.6.0"
+params.max_QTL_number = 5
+params.max_QTL_size = 2000000
+
 
 println()
 
@@ -46,53 +49,55 @@ log.info ""
 
 
 if (params.help) {
-    log.info "----------------------------------------------------------------"
-    log.info "                      USAGE                                     "
-    log.info "----------------------------------------------------------------"
-    log.info ""
-    log.info "nextflow main.nf --traitfile=test_bulk --vcf=bin/WI.20180527.impute.vcf.gz --p3d=TRUE --sthresh=EIGEN # run all traits from a single file"
-    log.info "nextflow main.nf --traitdir=test_bulk --p3d=TRUE --sthresh=BF # download VCF from CeNDR"
-    log.info ""
-    log.info "Mandatory arguments:"
-    log.info "--traitfile              String                Name of file that contains phenotypes. File should be tab-delimited with the columns: strain trait1 trait2 ..."
-    log.info "--vcf                    String                Name of VCF to extract variants from. There should also be a tabix-generated index file with the same name in the directory that contains the VCF. If none is provided, the pipeline will download the latest VCF from CeNDR"
-    log.info "--p3d                    BOOLEAN               Set to FALSE for EMMA algortith, TRUE for EMMAx"
-    log.info "----------------------------------------------------------------"
-    log.info "----------------------------------------------------------------"
-   	log.info "Optional arguments (General):"
-   	log.info "--out                    String                Name of folder that will contain the results"
-    log.info "--e_mem                  String                Value that corresponds to the amount of memory to allocate for eigen decomposition of chromosomes (DEFAULT = 100)"
-    log.info "--cendr_v                String                CeNDR release (DEFAULT = 20180527)"
-    log.info "Optional arguments (Marker):"
-    log.info "--sthresh                String                Significance threshold for QTL - Options: BF - for bonferroni correction, EIGEN - for SNV eigen value correction, or another number e.g. 4"
-    log.info "--group_qtl              Integer               If two QTL are less than this distance from each other, combine the QTL into one, (DEFAULT = 1000)"
-    log.info "--ci_size                Integer               Number of SNVs to the left and right of the peak marker used to define the QTL confidence interval, (DEFAULT = 150)"
-    log.info "Optional arguments (Burden):"
-    log.info "--freqUpper              Float                 Maximum allele frequency for a variant to be considered for burden mapping, (DEFAULT = 0.05)"
-    log.info "--minburden              Interger              Minimum number of strains to have a variant for the variant to be considered for burden mapping, (DEFAULT = 2)"
-    log.info "--genes                  String                refFlat file format that contains start and stop genomic coordinates for genes of interest, (DEFAULT = bin/gene_ref_flat.Rda)"
-    log.info "--R_libpath                  String                Path to the required R libraries (DEFAULT = /projects/b1059/software/R_lib_3.4.1)"
-    log.info ""
-    log.info "--------------------------------------------------------"
-    log.info "Information describing the stucture of the input files can be located in input_files/README.txt"
-    log.info ""
-    log.info ""
-    log.info "Flags:"
-    log.info "--help                                      Display this message"
-    log.info ""
-    log.info "--------------------------------------------------------"
-    log.info ""
-    log.info " Required software packages to be in users path"
-    log.info "BCFtools               v1.9"
-    log.info "plink                  v1.9"
-    log.info "R-cegwas2              Found on GitHub"
-    log.info "R-tidyverse            v1.2.1"
-    log.info "R-correlateR           Found on GitHub"
-    log.info "R-rrBLUP               v4.6"
-    log.info "R-RSpectra             v0.13-1"
-    log.info "R-ggbeeswarm           v0.6.0"
-    log.info "--------------------------------------------------------"    
-    exit 1
+		log.info "----------------------------------------------------------------"
+		log.info "                      USAGE                                     "
+		log.info "----------------------------------------------------------------"
+		log.info ""
+		log.info "nextflow main.nf --traitfile=test_bulk --vcf=bin/WI.20180527.impute.vcf.gz --p3d=TRUE --sthresh=EIGEN # run all traits from a single file"
+		log.info "nextflow main.nf --traitdir=test_bulk --p3d=TRUE --sthresh=BF # download VCF from CeNDR"
+		log.info ""
+		log.info "Mandatory arguments:"
+		log.info "--traitfile              String                Name of file that contains phenotypes. File should be tab-delimited with the columns: strain trait1 trait2 ..."
+		log.info "--vcf                    String                Name of VCF to extract variants from. There should also be a tabix-generated index file with the same name in the directory that contains the VCF. If none is provided, the pipeline will download the latest VCF from CeNDR"
+		log.info "--p3d                    BOOLEAN               Set to FALSE for EMMA algortith, TRUE for EMMAx"
+		log.info "----------------------------------------------------------------"
+		log.info "----------------------------------------------------------------"
+		log.info "Optional arguments (General):"
+		log.info "--out                    String                Name of folder that will contain the results"
+		log.info "--e_mem                  String                Value that corresponds to the amount of memory to allocate for eigen decomposition of chromosomes (DEFAULT = 100)"
+		log.info "--cendr_v                String                CeNDR release (DEFAULT = 20180527)"
+		log.info "Optional arguments (Marker):"
+		log.info "--sthresh                String                Significance threshold for QTL - Options: BF - for bonferroni correction, EIGEN - for SNV eigen value correction, or another number e.g. 4"
+		log.info "--group_qtl              Integer               If two QTL are less than this distance from each other, combine the QTL into one, (DEFAULT = 1000)"
+		log.info "--ci_size                Integer               Number of SNVs to the left and right of the peak marker used to define the QTL confidence interval, (DEFAULT = 150)"
+		log.info "Optional arguments (Burden):"
+		log.info "--freqUpper              Float                 Maximum allele frequency for a variant to be considered for burden mapping, (DEFAULT = 0.05)"
+		log.info "--minburden              Interger              Minimum number of strains to have a variant for the variant to be considered for burden mapping, (DEFAULT = 2)"
+		log.info "--genes                  String                refFlat file format that contains start and stop genomic coordinates for genes of interest, (DEFAULT = bin/gene_ref_flat.Rda)"
+		log.info "--R_libpath                  String                Path to the required R libraries (DEFAULT = /projects/b1059/software/R_lib_3.4.1)"
+		log.info "--max_QTL_number             Integer               Max number of QTL to run fine mapping (DEFAULT = 5)"
+		log.info "--max_QTL_size               Integer               Max width of QTL to run fine mapping (DEFAULT = 2000000)"
+		log.info ""
+		log.info "--------------------------------------------------------"
+		log.info "Information describing the stucture of the input files can be located in input_files/README.txt"
+		log.info ""
+		log.info ""
+		log.info "Flags:"
+		log.info "--help                                      Display this message"
+		log.info ""
+		log.info "--------------------------------------------------------"
+		log.info ""
+		log.info " Required software packages to be in users path"
+		log.info "BCFtools               v1.9"
+		log.info "plink                  v1.9"
+		log.info "R-cegwas2              Found on GitHub"
+		log.info "R-tidyverse            v1.2.1"
+		log.info "R-correlateR           Found on GitHub"
+		log.info "R-rrBLUP               v4.6"
+		log.info "R-RSpectra             v0.13-1"
+		log.info "R-ggbeeswarm           v0.6.0"
+		log.info "--------------------------------------------------------"    
+		exit 1
 } else {
 
 log.info ""
@@ -123,9 +128,9 @@ if (params.vcf) {
 	vcf
 		.spread(vcf_index)
 		.into{vcf_to_whole_genome;
-			  vcf_to_fine_map;
-			  vcf_to_burden;
-			  vcf_to_query_vcf}
+				vcf_to_fine_map;
+				vcf_to_burden;
+				vcf_to_query_vcf}
 
 } else {
 
@@ -147,9 +152,9 @@ if (params.vcf) {
 	dl_vcf
 		.spread(dl_vcf_index)
 		.into{vcf_to_whole_genome;
-			  vcf_to_fine_map;
-			  vcf_to_burden;
-			  vcf_to_query_vcf}
+				vcf_to_fine_map;
+				vcf_to_burden;
+				vcf_to_query_vcf}
 
 }
 
@@ -176,7 +181,7 @@ Channel
 Channel
 	.from("${params.p3d}")
 	.into{p3d_full;
-		  p3d_fine}
+			p3d_fine}
 
 /*
 ~ ~ ~ > * INITIATE THRESHOLD CHANNEL
@@ -185,7 +190,7 @@ Channel
 Channel
 	.from("${params.sthresh}")
 	.into{sig_threshold_full;
-		  sig_threshold_fine}
+			sig_threshold_fine}
 
 /*
 ~ ~ ~ > * INITIATE PHENOTYPE CHANNEL - GENERATES A [trait_name, trait_file] TUPLE
@@ -222,15 +227,15 @@ process fix_strain_names_bulk {
 }
 
 fixed_strain_phenotypes
-    .flatten()
-    .map { file -> tuple(file.baseName.replaceAll(/pr_/,""), file) }
+		.flatten()
+		.map { file -> tuple(file.baseName.replaceAll(/pr_/,""), file) }
 	.into{ traits_to_map;
-		  traits_to_burden }
+			traits_to_burden }
 
 
 phenotyped_strains_to_analyze
 	.into{strain_list_genome;
-		  strain_list_finemap}
+			strain_list_finemap}
 
 
 
@@ -296,8 +301,8 @@ process vcf_to_geno_matrix {
 
 geno_matrix
 	.into{eigen_gm;
-		  mapping_gm;
-      linkage_gm}
+			mapping_gm;
+			linkage_gm}
 
 
 /*
@@ -417,12 +422,12 @@ process rrblup_maps {
 	"""
 		tests=`cat independent_snvs.csv | grep -v inde`
 
-	  echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Run_Mappings.R > Run_Mappings.R
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Run_Mappings.R > Run_Mappings.R
 
-    Rscript --vanilla Run_Mappings.R ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
+		Rscript --vanilla Run_Mappings.R ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
 
 		if [ -e Rplots.pdf ]; then
-    		rm Rplots.pdf
+				rm Rplots.pdf
 		fi
 	"""
 }
@@ -430,11 +435,11 @@ process rrblup_maps {
 
 
 pr_maps_trait
-  .into{ pr_maps_trait1 ; pr_maps_trait2 }
+	.into{ pr_maps_trait1 ; pr_maps_trait2 }
 
 pr_maps_trait1
-  .combine(linkage_gm)
-  .set{ linkage_input }
+	.combine(linkage_gm)
+	.set{ linkage_input }
 
 /*
 ------------ Generate linkage plot between QTL regions
@@ -442,24 +447,24 @@ pr_maps_trait1
 
 process LD_between_regions{
 
-  tag { TRAIT }
+	tag { TRAIT }
 
-  publishDir "${params.out}/Mappings/Data", mode: 'copy', pattern: "*LD_between_QTL_regions.tsv"
+	publishDir "${params.out}/Mappings/Data", mode: 'copy', pattern: "*LD_between_QTL_regions.tsv"
 
-  input:
-  set val(TRAIT), file("processed_mapping.tsv"), file("Genotype_Matrix.tsv") from linkage_input
+	input:
+	set val(TRAIT), file("processed_mapping.tsv"), file("Genotype_Matrix.tsv") from linkage_input
 
-  output:
-  set val(TRAIT), file("*LD_between_QTL_regions.tsv") optional true into linkage_table
-  val(TRAIT) into linkage_done
+	output:
+	set val(TRAIT), file("*LD_between_QTL_regions.tsv") optional true into linkage_table
+	val(TRAIT) into linkage_done
 
-  """
+	"""
 
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/LD_between_regions.R > LD_between_regions.R 
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/LD_between_regions.R > LD_between_regions.R 
 
-    Rscript --vanilla LD_between_regions.R Genotype_Matrix.tsv processed_mapping.tsv ${TRAIT}
+		Rscript --vanilla LD_between_regions.R Genotype_Matrix.tsv processed_mapping.tsv ${TRAIT}
 
-  """
+	"""
 }
 
 
@@ -482,13 +487,13 @@ process summarize_maps {
 	output:
 	file("*.pdf") into summarized_plot
 	file("QTL_peaks.tsv") into qtl_peaks
-  val true into qtl_peaks_done
+	val true into qtl_peaks_done
 
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Summarize_Mappings.R > Summarize_Mappings.R 
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Summarize_Mappings.R > Summarize_Mappings.R 
 		
-    Rscript --vanilla Summarize_Mappings.R
+		Rscript --vanilla Summarize_Mappings.R
 
 		cat *processed_mapping.tsv |\\
 		awk '\$0 !~ "\\tNA\\t" {print}' |\\
@@ -506,19 +511,19 @@ process summarize_maps {
 }
 
 qtl_peaks
-  .into{qtl_peaks1 ; qtl_peaks2}
+	.into{qtl_peaks1 ; qtl_peaks2}
 
 
 qtl_peaks1
-   .splitCsv(sep: '\t')
-   .into{peaks ; printpeaks ; html_report_peaks }
+	 .splitCsv(sep: '\t')
+	 .into{peaks ; printpeaks ; html_report_peaks }
 
 peaks
-   .join(processed_map_to_ld)
-   .join(pr_maps_trait2)
-   .spread(vcf_to_fine_map)
-   .spread(strain_list_finemap)
-   .into{QTL_peaks; QTL_peaks_print}
+	 .join(processed_map_to_ld)
+	 .join(pr_maps_trait2)
+	 .spread(vcf_to_fine_map)
+	 .spread(strain_list_finemap)
+	 .into{QTL_peaks; QTL_peaks_print}
 
 /*
 ======================================
@@ -551,73 +556,81 @@ process prep_ld_files {
 		awk '!seen[\$2,\$5,\$12,\$13,\$14]++' |\\
 		awk 'NR>1{print \$2, \$5, \$12, \$13, \$14}' OFS="\\t" > ${TRAIT}_QTL_peaks.tsv
 
-		filename='${TRAIT}_QTL_peaks.tsv'
-		echo Start
-		while read p; do 
-		    chromosome=`echo \$p | cut -f1 -d' '`
-		    trait=`echo \$p | cut -f2 -d' '`
-		    start_pos=`echo \$p | cut -f3 -d' '`
-		    peak_pos=`echo \$p | cut -f4 -d' '`
-		    end_pos=`echo \$p | cut -f5 -d' '`
-		
-		cat ${phenotype} | awk '\$0 !~ "strain" {print}' | cut -f1 > phenotyped_samples.txt
+		if [[ \$(wc -l <${TRAIT}_QTL_peaks.tsv) -le ${params.max_QTL_number} ]]
+		then 
 
-		bcftools view --regions \$chromosome:\$start_pos-\$end_pos ${vcf} \
-		-S phenotyped_samples.txt |\\
-		bcftools filter -i N_MISSING=0 |\\
-		awk '\$0 !~ "#" {print \$1":"\$2}' > \$trait.\$chromosome.\$start_pos.\$end_pos.txt
+			filename='${TRAIT}_QTL_peaks.tsv'
+			echo Start
+			while read p; do 
+					chromosome=`echo \$p | cut -f1 -d' '`
+					trait=`echo \$p | cut -f2 -d' '`
+					start_pos=`echo \$p | cut -f3 -d' '`
+					peak_pos=`echo \$p | cut -f4 -d' '`
+					end_pos=`echo \$p | cut -f5 -d' '`
+
+			if [[ \$[\$end_pos - \$start_pos] -lt ${params.max_QTL_size} ]]
+			then
+				cat ${phenotype} | awk '\$0 !~ "strain" {print}' | cut -f1 > phenotyped_samples.txt
+
+				bcftools view --regions \$chromosome:\$start_pos-\$end_pos ${vcf} \
+				-S phenotyped_samples.txt |\\
+				bcftools filter -i N_MISSING=0 |\\
+				awk '\$0 !~ "#" {print \$1":"\$2}' > \$trait.\$chromosome.\$start_pos.\$end_pos.txt
 
 
-		bcftools view --regions \$chromosome:\$start_pos-\$end_pos ${vcf} \
-		-S phenotyped_samples.txt |\\
-		bcftools filter -i N_MISSING=0 -Oz -o finemap.vcf.gz
+				bcftools view --regions \$chromosome:\$start_pos-\$end_pos ${vcf} \
+				-S phenotyped_samples.txt |\\
+				bcftools filter -i N_MISSING=0 -Oz -o finemap.vcf.gz
 
-		plink --vcf finemap.vcf.gz \\
-			--snps-only \\
-			--maf 0.05 \\
-			--biallelic-only \\
-			--allow-extra-chr \\
-			--set-missing-var-ids @:# \\
-			--geno \\
-			--make-bed \\
-			--recode vcf-iid bgz \\
-			--extract \$trait.\$chromosome.\$start_pos.\$end_pos.txt \\
-			--out \$trait.\$chromosome.\$start_pos.\$end_pos
+				plink --vcf finemap.vcf.gz \\
+					--snps-only \\
+					--maf 0.05 \\
+					--biallelic-only \\
+					--allow-extra-chr \\
+					--set-missing-var-ids @:# \\
+					--geno \\
+					--make-bed \\
+					--recode vcf-iid bgz \\
+					--extract \$trait.\$chromosome.\$start_pos.\$end_pos.txt \\
+					--out \$trait.\$chromosome.\$start_pos.\$end_pos
 
-		nsnps=`wc -l \$trait.\$chromosome.\$start_pos.\$end_pos.txt | cut -f1 -d' '`
+				nsnps=`wc -l \$trait.\$chromosome.\$start_pos.\$end_pos.txt | cut -f1 -d' '`
 
-		plink --r2 with-freqs \\
-			--allow-extra-chr \\
-			--snps-only \\
-			--ld-window-r2 0 \\
-			--ld-snp \$chromosome:\$peak_pos \\
-			--ld-window \$nsnps \\
-			--ld-window-kb 6000 \\
-			--chr \$chromosome \\
-			--out \$trait.\$chromosome:\$start_pos-\$end_pos.QTL \\
-			--set-missing-var-ids @:# \\
-			--vcf \$trait.\$chromosome.\$start_pos.\$end_pos.vcf.gz
+				plink --r2 with-freqs \\
+					--allow-extra-chr \\
+					--snps-only \\
+					--ld-window-r2 0 \\
+					--ld-snp \$chromosome:\$peak_pos \\
+					--ld-window \$nsnps \\
+					--ld-window-kb 6000 \\
+					--chr \$chromosome \\
+					--out \$trait.\$chromosome:\$start_pos-\$end_pos.QTL \\
+					--set-missing-var-ids @:# \\
+					--vcf \$trait.\$chromosome.\$start_pos.\$end_pos.vcf.gz
 
-		sed 's/  */\\t/g' \$trait.\$chromosome:\$start_pos-\$end_pos.QTL.ld |\\
-		cut -f2-10 |\\
-		sed 's/^23/X/g' | sed 's/\\t23\\t/\\tX\\t/g' > \$trait.\$chromosome.\$start_pos.\$end_pos.LD.tsv
+				sed 's/  */\\t/g' \$trait.\$chromosome:\$start_pos-\$end_pos.QTL.ld |\\
+				cut -f2-10 |\\
+				sed 's/^23/X/g' | sed 's/\\t23\\t/\\tX\\t/g' > \$trait.\$chromosome.\$start_pos.\$end_pos.LD.tsv
 
-		bcftools query --print-header -f '%CHROM\\t%POS\\t%REF\\t%ALT[\\t%GT]\\n' finemap.vcf.gz |\\
-			sed 's/[[# 0-9]*]//g' |\\
-			sed 's/:GT//g' |\\
-			sed 's/0|0/-1/g' |\\
-			sed 's/1|1/1/g' |\\
-			sed 's/0|1/NA/g' |\\
-			sed 's/1|0/NA/g' |\\
-			sed 's/.|./NA/g'  |\\
-			sed 's/0\\/0/-1/g' |\\
-			sed 's/1\\/1/1/g'  |\\
-			sed 's/0\\/1/NA/g' |\\
-			sed 's/1\\/0/NA/g' |\\
-			sed 's/.\\/./NA/g' |\\
-			sed 's/^23/X/g' > \$trait.\$chromosome:\$start_pos-\$end_pos.ROI_Genotype_Matrix.tsv
+				bcftools query --print-header -f '%CHROM\\t%POS\\t%REF\\t%ALT[\\t%GT]\\n' finemap.vcf.gz |\\
+					sed 's/[[# 0-9]*]//g' |\\
+					sed 's/:GT//g' |\\
+					sed 's/0|0/-1/g' |\\
+					sed 's/1|1/1/g' |\\
+					sed 's/0|1/NA/g' |\\
+					sed 's/1|0/NA/g' |\\
+					sed 's/.|./NA/g'  |\\
+					sed 's/0\\/0/-1/g' |\\
+					sed 's/1\\/1/1/g'  |\\
+					sed 's/0\\/1/NA/g' |\\
+					sed 's/1\\/0/NA/g' |\\
+					sed 's/.\\/./NA/g' |\\
+					sed 's/^23/X/g' > \$trait.\$chromosome:\$start_pos-\$end_pos.ROI_Genotype_Matrix.tsv
+			fi
 
-		done < \$filename
+			done < \$filename
+		fi
+
 	"""
 }
 
@@ -645,18 +658,18 @@ process rrblup_fine_maps {
 		set val(TRAIT), file(phenotype), file(roi_geno_matrix), file("*prLD_df.tsv") into concat_ld_out
 
 	"""
-        for i in *ROI_Genotype_Matrix.tsv;
-        do
-        	start_pos=`echo \$i | cut -f2 -d':' | cut -f1 -d'.' | cut -f1 -d'-'`
-        	end_pos=`echo \$i | cut -f2 -d':' | cut -f1 -d'.' | cut -f2 -d'-'`
+				for i in *ROI_Genotype_Matrix.tsv;
+				do
+					start_pos=`echo \$i | cut -f2 -d':' | cut -f1 -d'.' | cut -f1 -d'-'`
+					end_pos=`echo \$i | cut -f2 -d':' | cut -f1 -d'.' | cut -f2 -d'-'`
 
-        	ld_file=`ls *LD.tsv | grep "\$start_pos" | grep "\$end_pos" | tr -d '\\n'`
-        	echo "\$ld_file"
+					ld_file=`ls *LD.tsv | grep "\$start_pos" | grep "\$end_pos" | tr -d '\\n'`
+					echo "\$ld_file"
 
-          echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Finemap_QTL_Intervals.R > Finemap_QTL_Intervals.R
-          
-          Rscript --vanilla Finemap_QTL_Intervals.R ${complete_geno} \$i ${pr_map} \$ld_file ${task.cpus} ${params.p3d}
-        done   
+					echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Finemap_QTL_Intervals.R > Finemap_QTL_Intervals.R
+					
+					Rscript --vanilla Finemap_QTL_Intervals.R ${complete_geno} \$i ${pr_map} \$ld_file ${task.cpus} ${params.p3d}
+				done   
 
 	"""
 }
@@ -725,12 +738,12 @@ process plot_genes {
 
 	output:
 		set val(TRAIT), file("*snpeff_genes.tsv"), file("*pdf") into gene_plts
-    val(TRAIT) into gene_plts_done
+		val(TRAIT) into gene_plts_done
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/plot_genes.R > plot_genes.R
-    
-    Rscript --vanilla plot_genes.R ${ld} ${phenotype} ${genes} ${vcf} ${params.cendr_v}
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/plot_genes.R > plot_genes.R
+		
+		Rscript --vanilla plot_genes.R ${ld} ${phenotype} ${genes} ${vcf} ${params.cendr_v}
 	"""
 }
 
@@ -767,9 +780,9 @@ process burden_mapping {
 		set val(TRAIT), file("*.Skat.assoc"), file("*.VariableThresholdPrice.assoc") into burden_results
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/makeped.R > makeped.R
-    
-    Rscript --vanilla makeped.R ${trait_df}
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/makeped.R > makeped.R
+		
+		Rscript --vanilla makeped.R ${trait_df}
 
 		n_strains=`wc -l ${trait_df} | cut -f1 -d" "`
 		min_af=`bc -l <<< "${params.minburden}/(\$n_strains-1)"`
@@ -802,9 +815,9 @@ process plot_burden {
 		set val(TRAIT), file("*SKAT.pdf"), file("*VTprice.pdf") into burden_plots
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/plot_burden.R > plot_burden.R
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/plot_burden.R > plot_burden.R
 
-    Rscript --vanilla plot_burden.R ${TRAIT} ${skat} ${vt}
+		Rscript --vanilla plot_burden.R ${TRAIT} ${skat} ${vt}
 	"""
 }
 
@@ -831,35 +844,35 @@ val(TRAIT) into linkage_done
 
 
 burden_plots
-  .join(linkage_done)
-  .combine(qtl_peaks_done)
-  .set{ input_for_main }
+	.join(linkage_done)
+	.combine(qtl_peaks_done)
+	.set{ input_for_main }
 
 
 process html_report_main {
 
-  executor 'local'
+	executor 'local'
 
-  tag {TRAIT}
+	tag {TRAIT}
 
-  publishDir "${params.out}", mode: 'copy'
-
-
-  input:
-    set val(TRAIT), file(a), file(b), val(peaks_done) from input_for_main
-
-  output:
-    set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") into report_main
+	publishDir "${params.out}", mode: 'copy'
 
 
-  """
-    cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cegwas2_report_${TRAIT}_main.Rmd 
+	input:
+		set val(TRAIT), file(a), file(b), val(peaks_done) from input_for_main
 
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
+	output:
+		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") into report_main
 
-    Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
 
-  """
+	"""
+		cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cegwas2_report_${TRAIT}_main.Rmd 
+
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
+
+		Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
+
+	"""
 }
 
 
@@ -871,31 +884,31 @@ process html_report_main {
 
 process html_region_prep_table {
 
-  executor 'local'
+	executor 'local'
 
-  publishDir "${params.out}/Divergent_and_haplotype", mode: 'copy'
-
-
-  input:
-    file("QTL_peaks.tsv") from qtl_peaks2
-  output:
-    set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_isotype_list.txt") into div_hap_table
-    val true into html_region_prep_table_done
+	publishDir "${params.out}/Divergent_and_haplotype", mode: 'copy'
 
 
+	input:
+		file("QTL_peaks.tsv") from qtl_peaks2
+	output:
+		set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_isotype_list.txt") into div_hap_table
+		val true into html_region_prep_table_done
 
-  """
-  cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' > QTL_region.bed
 
-  bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
 
-  bedtools intersect -a ${workflow.projectDir}/bin/divergent_df_isotype.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_div.bed
+	"""
+	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' > QTL_region.bed
 
-  bedtools intersect -a ${workflow.projectDir}/bin/haplotype_df_isotype.bed -b QTL_region.bed -wo | sort -k1,1 -k2,2n | uniq > haplotype_in_QTL_region.txt
+	bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
 
-  cp ${workflow.projectDir}/bin/div_isotype_list.txt . 
+	bedtools intersect -a ${workflow.projectDir}/bin/divergent_df_isotype.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_div.bed
 
-  """
+	bedtools intersect -a ${workflow.projectDir}/bin/haplotype_df_isotype.bed -b QTL_region.bed -wo | sort -k1,1 -k2,2n | uniq > haplotype_in_QTL_region.txt
+
+	cp ${workflow.projectDir}/bin/div_isotype_list.txt . 
+
+	"""
 
 }
 
@@ -906,49 +919,49 @@ process html_region_prep_table {
 
 /*
 output:
-    set val(TRAIT), file("*snpeff_genes.tsv"), file("*pdf") into gene_plts
+		set val(TRAIT), file("*snpeff_genes.tsv"), file("*pdf") into gene_plts
 
 qtl_peaks1
-   .splitCsv(sep: '\t') gives [PC1, II, 7319019, 7931252, 8506109] [PC3, X, 3100450, 4347426, 5385392]
-   .into{peaks ; printpeaks ; html_report_peaks }
+	 .splitCsv(sep: '\t') gives [PC1, II, 7319019, 7931252, 8506109] [PC3, X, 3100450, 4347426, 5385392]
+	 .into{peaks ; printpeaks ; html_report_peaks }
 
 each TRAIT could have multiple peaks. Each peak have 1 process.
 */
 
 
 html_report_peaks
-  .combine(gene_plts_done, by: 0)
-  .combine(html_region_prep_table_done)
-  .set{input_for_region}
+	.combine(gene_plts_done, by: 0)
+	.combine(html_region_prep_table_done)
+	.set{input_for_region}
 
 
 process html_report_region {
 
 	tag "$TRAIT $CHROM $peak_pos"
-  memory '20 GB'
+	memory '20 GB'
 
-  errorStrategy 'ignore'
+	errorStrategy 'ignore'
 
 	publishDir "${params.out}", mode: 'copy', pattern: "*.Rmd"
 	publishDir "${params.out}", mode: 'copy', pattern: "*.html"
 
 	input:
-    set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), val(gene_plt_done), val(div_done) from input_for_region
+		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), val(gene_plt_done), val(div_done) from input_for_region
 
 	output:
 		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") optional true into html_rmd_report
 
 
 	"""
-    if (( ${end_pos}-1500000 < ${start_pos} )); then
+		if (( ${end_pos}-1500000 < ${start_pos} )); then
 
-		  cat "${workflow.projectDir}/bin/cegwas2_report_region.Rmd" | sed -e "s/TRAIT_NAME_HOLDER/${TRAIT}/g" -e "s/QTL_CHROM_HOLDER/${CHROM}/g" -e "s/QTL_REGION_START_HOLDER/${start_pos}/g" -e "s/QTL_PEAK_HOLDER/${peak_pos}/g" -e "s/QTL_REGION_END_HOLDER/${end_pos}/g" > cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd 
+			cat "${workflow.projectDir}/bin/cegwas2_report_region.Rmd" | sed -e "s/TRAIT_NAME_HOLDER/${TRAIT}/g" -e "s/QTL_CHROM_HOLDER/${CHROM}/g" -e "s/QTL_REGION_START_HOLDER/${start_pos}/g" -e "s/QTL_PEAK_HOLDER/${peak_pos}/g" -e "s/QTL_REGION_END_HOLDER/${end_pos}/g" > cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd 
 
-      echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
+			echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
 
-		  Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
+			Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
 
-    fi
+		fi
 	"""
 
 }
@@ -968,32 +981,32 @@ process html_report_region {
 
 workflow.onComplete {
 
-    summary = """
+		summary = """
 
-    Pipeline execution summary
-    ---------------------------
-    Completed at: ${workflow.complete}
-    Duration    : ${workflow.duration}
-    Success     : ${workflow.success}
-    workDir     : ${workflow.workDir}
-    exit status : ${workflow.exitStatus}
-    Error report: ${workflow.errorReport ?: '-'}
-    Git info: $workflow.repository - $workflow.revision [$workflow.commitId]
+		Pipeline execution summary
+		---------------------------
+		Completed at: ${workflow.complete}
+		Duration    : ${workflow.duration}
+		Success     : ${workflow.success}
+		workDir     : ${workflow.workDir}
+		exit status : ${workflow.exitStatus}
+		Error report: ${workflow.errorReport ?: '-'}
+		Git info: $workflow.repository - $workflow.revision [$workflow.commitId]
 
-    """
+		"""
 
-    println summary
+		println summary
 
-    def outlog = new File("${params.out}/log.txt")
-    outlog.newWriter().withWriter {
-        outlog << param_summary
-        outlog << summary
-    }
+		def outlog = new File("${params.out}/log.txt")
+		outlog.newWriter().withWriter {
+				outlog << param_summary
+				outlog << summary
+		}
 
-    // mail summary
-    if (params.email) {
-        ['mail', '-s', 'cegwas2-nf', params.email].execute() << summary
-    }
+		// mail summary
+		if (params.email) {
+				['mail', '-s', 'cegwas2-nf', params.email].execute() << summary
+		}
 
 
 }
