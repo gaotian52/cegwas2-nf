@@ -544,10 +544,10 @@ process prep_ld_files {
 	tag {TRAIT}
 
 	input:
-		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(strains) from QTL_peaks
+		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(strains) from QTL_peaks
 
 	output:
-		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file("*ROI_Genotype_Matrix.tsv"), file("*LD.tsv") into LD_files_to_plot
+		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file("*ROI_Genotype_Matrix.tsv"), file("*LD.tsv") optional true into LD_files_to_plot
 
 	"""
 		echo "HELLO"
@@ -650,11 +650,9 @@ process rrblup_fine_maps {
 
 
 	input:
-		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(roi_geno_matrix), file(roi_ld) from LD_files_to_plot
-
+		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(roi_geno_matrix), file(roi_ld) from LD_files_to_plot
 
 	output:
-		set file("*pdf"), file("*prLD_df.tsv") into ld_out
 		set val(TRAIT), file(phenotype), file(roi_geno_matrix), file("*prLD_df.tsv") into concat_ld_out
 
 	"""
@@ -824,7 +822,7 @@ process html_region_prep_table {
 
 
 	"""
-	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' > QTL_region.bed
+	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' | awk '(\$3-\$2) < params.max_QTL_size' > QTL_region.bed
 
 	bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
 
