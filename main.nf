@@ -437,9 +437,6 @@ process rrblup_maps {
 
 
 pr_maps_trait
-	.into{ pr_maps_trait1 ; pr_maps_trait2 }
-
-pr_maps_trait1
 	.combine(linkage_gm)
 	.set{ linkage_input }
 
@@ -489,7 +486,6 @@ process summarize_maps {
 	output:
 	file("*.pdf") into summarized_plot
 	file("QTL_peaks.tsv") into qtl_peaks
-	val true into qtl_peaks_done
 
 
 	"""
@@ -516,16 +512,18 @@ qtl_peaks
 	.into{qtl_peaks1 ; qtl_peaks2}
 
 
-qtl_peaks1
-	 .splitCsv(sep: '\t')
-	 .into{peaks ; printpeaks }
-
-peaks
-	 .join(processed_map_to_ld)
-	 .join(pr_maps_trait2)
-	 .spread(vcf_to_fine_map)
-	 .spread(strain_list_finemap)
-	 .into{QTL_peaks; QTL_peaks_print}
+/*
+qtl_peaks  // QTL_peaks.tsv contains all trait
+   .splitCsv(sep: '\t')
+   .into{peaks;printpeaks}
+*/
+// peaks    // QTL_peaks.tsv split into individual rows of TRAIT, chrom, start, peak, end. All below join by TRAIT
+//   .join(processed_map_to_ld)   // set val(TRAIT), file(TRAIT_genotype_matrix.tsv) file(TRAIT_trait.tsv)
+processed_map_to_ld      // set val(TRAIT), file(TRAIT_genotype_matrix.tsv) file(TRAIT_trait.tsv)
+   .join(pr_maps_trait)   // TRAIT_processed_mapping.tsv
+   .spread(vcf_to_fine_map)   // set cendr.vcf.gz & index
+   .spread(strain_list_finemap)   // file("Phenotyped_Strains.txt")
+   .into{QTL_peaks; QTL_peaks_print}
 
 /*
 ======================================
@@ -549,7 +547,7 @@ process prep_ld_files {
 		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(strains) from QTL_peaks
 
 	output:
-		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file("*ROI_Genotype_Matrix.tsv"), file("*LD.tsv") optional true into LD_files_to_plot
+		set val(TRAIT), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file("*ROI_Genotype_Matrix.tsv"), file("*LD.tsv") into LD_files_to_plot
 
 	"""
 		echo "HELLO"
@@ -728,7 +726,7 @@ process plot_genes {
 	cpus 1
 	memory '20 GB'
 
-	tag {phenotype}
+	tag {TRAIT}
 
 	publishDir "${params.out}/Fine_Mappings/Plots", mode: 'copy', pattern: "*_gene_plot.pdf"
 	publishDir "${params.out}/Fine_Mappings/Data", mode: 'copy', pattern: "*snpeff_genes.tsv"
@@ -738,7 +736,6 @@ process plot_genes {
 
 	output:
 		set val(TRAIT), file("*snpeff_genes.tsv"), file("*pdf") into gene_plts
-		val(TRAIT) into gene_plts_done
 
 	"""
 		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/plot_genes.R > plot_genes.R
@@ -773,15 +770,13 @@ process html_region_prep_table {
 
 
 	input:
-		file("QTL_peaks.tsv") from qtl_peaks2
+		file("QTL_peaks.tsv") from qtl_peaks
 	output:
 		set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_isotype_list.txt") into div_hap_table
-		val true into html_region_prep_table_done
-
 
 
 	"""
-	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' | awk '(\$3-\$2) < params.max_QTL_size' > QTL_region.bed
+	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' | awk '(\$3-\$2) < ${params.max_QTL_size}' > QTL_region.bed
 
 	bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
 
@@ -807,12 +802,12 @@ val(TRAIT) into linkage_done
 
 
 linkage_done
-	.join(gene_plts_done)
-	.combine(qtl_peaks_done)
-	.combine(html_region_prep_table_done)
-	.set{ input_for_main }
+  .join(gene_plts)
+  .combine(qtl_peaks1)
+  .combine(div_hap_table)
+  .view()
 
-
+/*
 process html_report_main {
 
 	executor 'local'
@@ -823,16 +818,18 @@ process html_report_main {
 
 
 	input:
-		set val(TRAIT), val(a), val(b) from input_for_main
+		set val(TRAIT), file(gene_snpeff), file(gene_pdf), file(peak_all), file(a), file(b), file(c), file(d) from input_for_main
 
 	output:
-		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") into report_main
+		set file("cendr_mapping_*.Rmd"), file("cendr_mapping_*.html") into report_main
 
 
 	"""
-		cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cegwas2_report_${TRAIT}_main.Rmd 
+    cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cendr_mapping_report_${TRAIT}_main.Rmd 
 
-		Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
+    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
+
+    Rscript -e "rmarkdown::render('cendr_mapping_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
 
 	"""
 }
