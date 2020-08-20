@@ -74,7 +74,7 @@ if (params.help) {
 		log.info "--freqUpper              Float                 Maximum allele frequency for a variant to be considered for burden mapping, (DEFAULT = 0.05)"
 		log.info "--minburden              Interger              Minimum number of strains to have a variant for the variant to be considered for burden mapping, (DEFAULT = 2)"
 		log.info "--genes                  String                refFlat file format that contains start and stop genomic coordinates for genes of interest, (DEFAULT = bin/gene_ref_flat.Rda)"
-		log.info "--R_libpath                  String                Path to the required R libraries (DEFAULT = /projects/b1059/software/R_lib_3.4.1)"
+		log.info "--R_libpath                  String                Path to the required R libraries (DEFAULT = /projects/b1059/software/R_lib_3.6.0)"
 		log.info "--max_QTL_number             Integer               Max number of QTL to run fine mapping (DEFAULT = 5)"
 		log.info "--max_QTL_size               Integer               Max width of QTL to run fine mapping (DEFAULT = 2000000)"
 		log.info ""
@@ -112,6 +112,8 @@ log.info "Gene File                               = ${params.genes}"
 log.info "Result Directory                        = ${params.out}"
 log.info "Eigen Memory allocation                 = ${params.eigen_mem}"
 log.info "Path to R libraries.                    = ${params.R_libpath}"
+log.info "Max QTL number to fine map a trait      = ${params.max_QTL_number}"
+log.info "Max width of QTL to fine map the QTL    = ${params.max_QTL_size}"
 log.info ""
 }
 
@@ -516,7 +518,7 @@ qtl_peaks
 
 qtl_peaks1
 	 .splitCsv(sep: '\t')
-	 .into{peaks ; printpeaks ; html_report_peaks }
+	 .into{peaks ; printpeaks }
 
 peaks
 	 .join(processed_map_to_ld)
@@ -663,9 +665,9 @@ process rrblup_fine_maps {
 
 					ld_file=`ls *LD.tsv | grep "\$start_pos" | grep "\$end_pos" | tr -d '\\n'`
 					echo "\$ld_file"
-
-					echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Finemap_QTL_Intervals.R > Finemap_QTL_Intervals.R
 					
+					echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Finemap_QTL_Intervals.R > Finemap_QTL_Intervals.R
+
 					Rscript --vanilla Finemap_QTL_Intervals.R ${complete_geno} \$i ${pr_map} \$ld_file ${task.cpus} ${params.p3d}
 				done   
 
@@ -724,7 +726,7 @@ genes
 process plot_genes {
 
 	cpus 1
-	memory '64 GB'
+	memory '20 GB'
 
 	tag {phenotype}
 
@@ -756,49 +758,6 @@ process plot_genes {
 ~ > *                          * < ~
 ====================================
 */
-
-/*
------- Create main report regardless of whether any significant QTL regions exist
-*/
-
-/*    Recall that:
-set val(TRAIT), file("*SKAT.pdf"), file("*VTprice.pdf") into burden_plots 
-val(TRAIT) into linkage_done
-*/
-
-
-burden_plots
-	.join(linkage_done)
-	.combine(qtl_peaks_done)
-	.set{ input_for_main }
-
-
-process html_report_main {
-
-	executor 'local'
-
-	tag {TRAIT}
-
-	publishDir "${params.out}", mode: 'copy'
-
-
-	input:
-		set val(TRAIT), file(a), file(b), val(peaks_done) from input_for_main
-
-	output:
-		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") into report_main
-
-
-	"""
-		cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cegwas2_report_${TRAIT}_main.Rmd 
-
-		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
-
-		Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
-
-	"""
-}
-
 
 
 /*
@@ -836,58 +795,46 @@ process html_region_prep_table {
 
 }
 
-
 /*
------- Create report for each significant QTL region.
+------ Create main report regardless of whether any significant QTL regions exist
 */
 
-/*
-output:
-		set val(TRAIT), file("*snpeff_genes.tsv"), file("*pdf") into gene_plts
-
-qtl_peaks1
-	 .splitCsv(sep: '\t') gives [PC1, II, 7319019, 7931252, 8506109] [PC3, X, 3100450, 4347426, 5385392]
-	 .into{peaks ; printpeaks ; html_report_peaks }
-
-each TRAIT could have multiple peaks. Each peak have 1 process.
+/*    Recall that:
+set val(TRAIT), file("*SKAT.pdf"), file("*VTprice.pdf") into burden_plots 
+val(TRAIT) into linkage_done
 */
 
 
-html_report_peaks
-	.combine(gene_plts_done, by: 0)
+
+linkage_done
+	.join(gene_plts_done)
+	.combine(qtl_peaks_done)
 	.combine(html_region_prep_table_done)
-	.set{input_for_region}
+	.set{ input_for_main }
 
 
-process html_report_region {
+process html_report_main {
 
-	tag "$TRAIT $CHROM $peak_pos"
-	memory '20 GB'
+	executor 'local'
 
-	errorStrategy 'ignore'
+	tag {TRAIT}
 
-	publishDir "${params.out}", mode: 'copy', pattern: "*.Rmd"
-	publishDir "${params.out}", mode: 'copy', pattern: "*.html"
+	publishDir "${params.out}", mode: 'copy'
+
 
 	input:
-		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), val(gene_plt_done), val(div_done) from input_for_region
+		set val(TRAIT), val(a), val(b) from input_for_main
 
 	output:
-		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") optional true into html_rmd_report
+		set file("cegwas2_report_*.Rmd"), file("cegwas2_report_*.html") into report_main
 
 
 	"""
-		if (( ${end_pos}-1500000 < ${start_pos} )); then
+		cat "${workflow.projectDir}/bin/cegwas2_report_main.Rmd" | sed "s/TRAIT_NAME_HOLDER/${TRAIT}/g" > cegwas2_report_${TRAIT}_main.Rmd 
 
-			cat "${workflow.projectDir}/bin/cegwas2_report_region.Rmd" | sed -e "s/TRAIT_NAME_HOLDER/${TRAIT}/g" -e "s/QTL_CHROM_HOLDER/${CHROM}/g" -e "s/QTL_REGION_START_HOLDER/${start_pos}/g" -e "s/QTL_PEAK_HOLDER/${peak_pos}/g" -e "s/QTL_REGION_END_HOLDER/${end_pos}/g" > cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd 
+		Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
 
-			echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
-
-			Rscript -e "rmarkdown::render('cegwas2_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
-
-		fi
 	"""
-
 }
 
 
