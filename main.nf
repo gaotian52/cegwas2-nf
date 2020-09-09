@@ -509,14 +509,14 @@ process summarize_maps {
 }
 
 qtl_peaks
-	.into{qtl_peaks1 ; qtl_peaks2}
+	.into{ qtl_peaks1 ; qtl_peaks2; qtl_peaks3}
 
 
-/*
-qtl_peaks  // QTL_peaks.tsv contains all trait
+
+qtl_peaks1  // QTL_peaks.tsv contains all trait
    .splitCsv(sep: '\t')
-   .into{peaks;printpeaks}
-*/
+   .into{peaks ; html_report_peaks}
+
 // peaks    // QTL_peaks.tsv split into individual rows of TRAIT, chrom, start, peak, end. All below join by TRAIT
 //   .join(processed_map_to_ld)   // set val(TRAIT), file(TRAIT_genotype_matrix.tsv) file(TRAIT_trait.tsv)
 processed_map_to_ld      // set val(TRAIT), file(TRAIT_genotype_matrix.tsv) file(TRAIT_trait.tsv)
@@ -646,7 +646,6 @@ process rrblup_fine_maps {
 
 	publishDir "${params.out}/Fine_Mappings/Plots", mode: 'copy', pattern: "*_finemap_plot.pdf"
 	publishDir "${params.out}/Fine_Mappings/Data", mode: 'copy', pattern: "*_prLD_df.tsv"
-	tag {"${TRAIT} ${CHROM}:${start_pos}-${end_pos}"}
 
 
 	input:
@@ -756,40 +755,6 @@ process plot_genes {
 ====================================
 */
 
-
-/*
------- Slice out the QTL region for plotting divergent region and haplotype data.
-*/
-
-
-process html_region_prep_table {
-
-	executor 'local'
-
-	publishDir "${params.out}/Divergent_and_haplotype", mode: 'copy'
-
-
-	input:
-		file("QTL_peaks.tsv") from qtl_peaks
-	output:
-		set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_isotype_list.txt") into div_hap_table
-
-
-	"""
-	cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' | awk '(\$3-\$2) < ${params.max_QTL_size}' > QTL_region.bed
-
-	bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
-
-	bedtools intersect -a ${workflow.projectDir}/bin/divergent_df_isotype.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_div.bed
-
-	bedtools intersect -a ${workflow.projectDir}/bin/haplotype_df_isotype.bed -b QTL_region.bed -wo | sort -k1,1 -k2,2n | uniq > haplotype_in_QTL_region.txt
-
-	cp ${workflow.projectDir}/bin/div_isotype_list.txt . 
-
-	"""
-
-}
-
 /*
 ------ Create main report regardless of whether any significant QTL regions exist
 */
@@ -800,25 +765,29 @@ val(TRAIT) into linkage_done
 */
 
 
-
 linkage_done
-  .join(gene_plts)
-  .combine(qtl_peaks1)
-  .combine(div_hap_table)
-  .view()
+  .combine(qtl_peaks3)
+  .set{ input_for_main }
+
 
 /*
+burden_plots
+  .join(linkage_done)
+  .set{ input_for_main }
+*/
+
+
 process html_report_main {
 
 	executor 'local'
 
 	tag {TRAIT}
 
-	publishDir "${params.out}", mode: 'copy'
+	publishDir "${params.out}", mode: 'copy', pattern: "*.Rmd"
 
 
 	input:
-		set val(TRAIT), file(gene_snpeff), file(gene_pdf), file(peak_all), file(a), file(b), file(c), file(d) from input_for_main
+		set val(TRAIT), file(peak) from input_for_main
 
 	output:
 		set file("cendr_mapping_*.Rmd"), file("cendr_mapping_*.html") into report_main
@@ -829,11 +798,85 @@ process html_report_main {
 
     echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
 
-    Rscript -e "rmarkdown::render('cendr_mapping_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
+    Rscript -e "rmarkdown::render('cendr_mapping_report_${TRAIT}_main.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
 
 	"""
 }
 
+
+/*
+------ Slice out the QTL region for plotting divergent region and haplotype data.
+*/
+
+
+process html_region_prep_table {
+
+  executor 'local'
+
+  publishDir "${params.out}/Divergent_and_haplotype", mode: 'copy'
+
+
+  input:
+    file("QTL_peaks.tsv") from qtl_peaks2
+  output:
+    set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_isotype_list.txt") into div_hap_table
+
+
+  """
+  cat QTL_peaks.tsv | awk -v OFS='\t' '{print \$2,\$3,\$5}' | awk '(\$3-\$2) < ${params.max_QTL_size}' > QTL_region.bed
+
+  bedtools intersect -wa -a ${workflow.projectDir}/bin/divergent_bins.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_bins.bed
+
+  bedtools intersect -a ${workflow.projectDir}/bin/divergent_df_isotype.bed -b QTL_region.bed | sort -k1,1 -k2,2n | uniq > all_QTL_div.bed
+
+  bedtools intersect -a ${workflow.projectDir}/bin/haplotype_df_isotype.bed -b QTL_region.bed -wo | sort -k1,1 -k2,2n | uniq > haplotype_in_QTL_region.txt
+
+  cp ${workflow.projectDir}/bin/div_isotype_list.txt . 
+
+  """
+
+}
+
+
+html_report_peaks
+  .join(gene_plts)
+  .set{input_for_region}
+
+
+process html_report_region {
+
+  tag {TRAIT}
+  executor 'local'
+//  memory '20 GB'
+
+  publishDir "${params.out}", mode: 'copy', pattern: "*.Rmd"
+  publishDir "${params.out}", mode: 'copy', pattern: "*.html"
+
+  errorStrategy 'ignore'
+
+  input:
+    set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(a), file(b) from input_for_region
+    set file("all_QTL_bins.bed"), file("all_QTL_div.bed"), file("haplotype_in_QTL_region.txt"), file("div_strain_list.txt") from div_hap_table
+
+
+  output:
+    set file("cendr_mapping_report_*.Rmd"), file("cendr_mapping_report_*.html") optional true into html_rmd_report
+
+
+  """
+    if [[ \$[$end_pos - $start_pos] -lt ${params.max_QTL_size} ]]
+    then
+
+      cat "${workflow.projectDir}/bin/cegwas2_report_region.Rmd" | sed -e "s/TRAIT_NAME_HOLDER/${TRAIT}/g" -e "s/QTL_CHROM_HOLDER/${CHROM}/g" -e "s/QTL_REGION_START_HOLDER/${start_pos}/g" -e "s/QTL_PEAK_HOLDER/${peak_pos}/g" -e "s/QTL_REGION_END_HOLDER/${end_pos}/g" > cendr_mapping_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd 
+
+      echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" > .Rprofile
+
+      Rscript -e "rmarkdown::render('cendr_mapping_report_${TRAIT}_region_${CHROM}.${start_pos}-${end_pos}.Rmd', knit_root_dir='${workflow.launchDir}/${params.out}')"
+
+    fi
+  """
+
+}
 
 
 
