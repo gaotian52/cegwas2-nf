@@ -14,7 +14,7 @@ params.sthresh   = null
 params.freqUpper = 0.05
 params.minburden = 2
 params.refflat   = "bin/refFlat.ws245.txt"
-params.genes     = "bin/gene_ref_flat.Rda"
+params.genes     = "${workflow.projectDir}/bin/gene_ref_flat.Rda"
 params.cendr_v   = "20180527"
 params.e_mem   = "32"
 params.eigen_mem = params.e_mem + " GB"
@@ -385,7 +385,7 @@ independent_tests
 
 process rrblup_maps {
 
-  cpus 1
+  cpus 4
 
   tag { TRAIT }
 
@@ -620,7 +620,7 @@ process concatenate_LD_per_trait {
     set val(TRAIT), file(phenotype), file(roi_geno_matrix), file(processed_ld) from concat_ld_out
 
   output:
-    set file("${TRAIT}.combined_peak_LD.tsv"), file(phenotype) into combined_ld_data
+    set val(TRAIT), file("${TRAIT}.combined_peak_LD.tsv"), file(phenotype) into combined_ld_data
 
   """
     for i in *prLD_df.tsv;
@@ -646,8 +646,7 @@ process concatenate_LD_per_trait {
 
 }
 
-genes
-  .spread(combined_ld_data)
+combined_ld_data
   .spread(vcf_to_query_vcf)
   .set{plot_fine_map_genes}
 
@@ -658,20 +657,21 @@ genes
 process plot_genes {
 
   cpus 1
-  memory '16 GB'
+  memory { 16.GB * task.attempt }
+  errorStrategy { task.exitStatus == 137 ? 'retry' : 'terminate' }
 
-  tag {phenotype}
+  tag {TRAIT}
 
   publishDir "${params.out}/Fine_Mappings/Data", mode: 'copy', pattern: "*snpeff_genes.tsv"
 
   input:
-    set file(genes), file(ld), file(phenotype), file(vcf), file(vcfindex) from plot_fine_map_genes
+    set val(TRAIT), file(ld), file(phenotype), file(vcf), file(vcfindex) from plot_fine_map_genes
 
   output:
     file("*snpeff_genes.tsv") into gene_plts
 
   """
-    Rscript --vanilla `which plot_genes.R` ${ld} ${phenotype} ${genes} ${vcf} ${params.cendr_v}
+    Rscript --vanilla `which plot_genes.R` ${ld} ${phenotype} ${params.genes} ${vcf} ${params.cendr_v}
   """
 }
 
