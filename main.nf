@@ -20,7 +20,6 @@ params.e_mem   = "32"
 params.eigen_mem = params.e_mem + " GB"
 params.group_qtl = 1000
 params.ci_size   = 150
-params.fix_names = "fix"
 params.help    = null
 params.max_QTL_number = 5
 params.max_QTL_size = 2000000
@@ -213,7 +212,7 @@ process fix_strain_names_bulk {
     file("Phenotyped_Strains.txt") into phenotyped_strains_to_analyze
 
   """
-    Rscript --vanilla `which Fix_Isotype_names_bulk.R` ${phenotypes} ${params.fix_names}
+    Rscript --vanilla ${workflow.projectDir}/bin/Fix_Isotype_names_bulk_new.R ${phenotypes} ${params.vcf}
   """
 
 }
@@ -329,7 +328,7 @@ process chrom_eigen_variants {
   """
     cat Genotype_Matrix.tsv |\\
     awk -v chrom="${CHROM}" '{if(\$1 == "CHROM" || \$1 == chrom) print}' > ${CHROM}_gm.tsv
-    Rscript --vanilla `which Get_GenoMatrix_Eigen.R` ${CHROM}_gm.tsv ${CHROM}
+    Rscript --vanilla ${workflow.projectDir}/bin/Get_GenoMatrix_Eigen.R ${CHROM}_gm.tsv ${CHROM}
   """
 
 }
@@ -406,7 +405,7 @@ process rrblup_maps {
   """
     tests=`cat independent_snvs.csv | grep -v inde`
 
-    Rscript --vanilla `which Run_Mappings.R` ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
+    Rscript --vanilla ${workflow.projectDir}/bin/Run_Mappings.R ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
 
     if [ -e Rplots.pdf ]; then
         rm Rplots.pdf
