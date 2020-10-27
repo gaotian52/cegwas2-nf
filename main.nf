@@ -20,7 +20,6 @@ params.e_mem   = "32"
 params.eigen_mem = params.e_mem + " GB"
 params.group_qtl = 1000
 params.ci_size   = 150
-params.fix_names = "fix"
 params.help    = null
 params.max_QTL_number = 5
 params.max_QTL_size = 2000000
@@ -213,7 +212,7 @@ process fix_strain_names_bulk {
     file("Phenotyped_Strains.txt") into phenotyped_strains_to_analyze
 
   """
-    Rscript --vanilla `which Fix_Isotype_names_bulk.R` ${phenotypes} ${params.fix_names}
+    Rscript --vanilla ${workflow.projectDir}/bin/Fix_Isotype_names_bulk_new.R ${phenotypes} ${params.vcf}
   """
 
 }
