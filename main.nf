@@ -389,7 +389,7 @@ process rrblup_maps {
   tag { TRAIT }
 
   publishDir "${params.out}/Mappings/Data", mode: 'copy', pattern: "*processed_mapping.tsv"
-//  publishDir "${params.out}/Mappings/Plots", mode: 'copy', pattern: "*.pdf"
+  publishDir "${params.out}/Mappings/Plots", mode: 'copy', pattern: "*.pdf"
   
 
   input:
@@ -400,7 +400,7 @@ process rrblup_maps {
   set val(TRAIT), file(geno), file(pheno) into processed_map_to_ld
   file("*processed_mapping.tsv") into processed_map_to_summary_plot
   set val(TRAIT), file("*processed_mapping.tsv") into pr_maps_trait
-//  file("*.pdf") into gwas_plots
+  file("*.pdf") into gwas_plots
 
   """
     tests=`cat independent_snvs.csv | grep -v inde`
