@@ -3,6 +3,10 @@ library(tidyverse)
 library(rrBLUP)
 library(ggbeeswarm)
 
+
+library(qtl)
+library(sommer)
+
 # argument information
 # 1 - Genetoype matrix
 # 2 - Phenotype data 
@@ -54,6 +58,46 @@ if(significance_threshold == "BF"){
 }
 
 
+
+# narrow heritability function
+narrowh2 <- function(df_h,geno_matrix){
+  
+  
+  
+  pheno_strains <- unique(df_h$strain)
+  
+  A <- sommer::A.mat(t(geno_matrix[,colnames(geno_matrix) %in% pheno_strains]))
+  #E <- sommer::E.mat(t(geno_matrix[,colnames(geno_matrix) %in% pheno_strains]))
+  
+  df_h2 <- data.frame(trait = NA, h2 = NA, h2_SE = NA)
+  
+  for(i in 1:(ncol(df_h)-1)) {
+    
+    trait <- colnames(df_h)[i+1]
+    
+    df_y <- df_h %>%
+      #dplyr::filter(strain != "ECA393") %>%  ### no geno infor
+      dplyr::arrange(strain) %>%
+      dplyr::select(strain, value=trait) %>%
+      dplyr::mutate(strain = as.character(strain))
+    
+    h2_res <- sommer::mmer(value~1, random=~vs(strain,Gu=A), data=df_y)
+    
+    h2 <- as.numeric(pin(h2_res, h2 ~ (V1) / (V1+V2))[[1]][1])
+    h2_SE <- pin(h2_res, h2 ~ (V1) / (V1+V2))[[2]]
+    
+    h2_combine = c(trait, h2, h2_SE)
+    
+    df_h2 <- rbind(df_h2, h2_combine) %>%
+      na.omit() %>%
+      dplyr::arrange(desc(h2))
+  }    
+  
+  return(df_h2)
+  
+}
+
+
 # mapping function
 gwa_mapping <- function (data, 
                          cores = cores_avail, 
@@ -81,7 +125,7 @@ gwa_mapping <- function (data,
 }
 
 # plotting function
-manplot_edit <- function(plot_df, 
+manplot_edit <- function(plot_df, narrowh,
                          bf_line_color = "gray",
                          eigen_line_color = "gray",
                          eigen_cutoff = independent_test_cutoff) {
@@ -128,9 +172,9 @@ manplot_edit <- function(plot_df,
                      panel.background = ggplot2::element_rect(color = "black",size = 1.2),
                      legend.position = "none",
                      strip.background = element_blank()) +
-      ggplot2::labs(x = "Genomic Position (Mb)",
+      ggplot2::labs(x = "Genomic position (Mb)",
                     y = expression(-log[10](italic(p))),
-                    title = plot_traits)
+                    title = paste(plot_traits, "h2",narrowh,sep = "_"))
   })
   plots
 }
@@ -346,11 +390,27 @@ readr::write_tsv(processed_mapping,
                  path = glue::glue("{trait_name}_processed_mapping.tsv"),
                  col_names = T)
 
+
+
+
+
+#h2
+
+pheno_h2 <- narrowh2(df_h=phenotype_data,geno_matrix=genotype_matrix)
+
+
+nh2=round(as.numeric(pheno_h2$h2),digits = 2)
+
+
+
+
+
+
 # generate manhattan plot
-manhattan_plot <- manplot_edit(processed_mapping)
+manhattan_plot <- manplot_edit(plot_df=processed_mapping,narrowh=nh2)
 
 ggsave(manhattan_plot[[1]], 
-       filename = glue::glue("{trait_name}_manplot.pdf"),
+       filename = glue::glue("{trait_name}_manplot.jpg"),
        height = 4, 
        width = 12)
 
@@ -360,22 +420,15 @@ pxg_df <- na.omit(processed_mapping)
 if( nrow(pxg_df) > 0 ){
   
   pxg_df <- pxg_df %>%
-    dplyr::mutate(facet_marker = paste0(CHROM, ":", peakPOS))
+    dplyr::mutate(facet_marker = paste0(CHROM, ":", peakPOS)) %>%
+    dplyr::distinct(marker, strain, allele, .keep_all = T)
   
-  pxg_df%>%
-    dplyr::group_by(allele, facet_marker)%>%
-    dplyr::mutate(mean_pheno = mean(as.numeric(value), na.rm = T))%>%
+  pxg_df %>%
     ggplot()+
-    aes(x = factor(allele, levels = c(-1,1), labels = c("REF","ALT")))+
-    geom_beeswarm(cex=2,priority='density',
-                  aes(y = as.numeric(value)),
-                  shape = 21, 
-                  fill = "gray50",
-                  size = 2)+
-    geom_point(aes(y = mean_pheno), 
-               fill = "red", 
-               size = 3, 
-               shape = 25)+
+    aes(x=factor(as.character(allele),labels = c("REF","ALT")), y = value, fill = factor(as.character(allele),labels = c("REF","ALT")))+
+    geom_jitter(position=position_jitterdodge(jitter.width = 1), alpha = .7, size = 0.7)+
+    geom_boxplot(outlier.alpha = 0, alpha = 0.7)+
+    scale_fill_manual(values = c("#377EB8", "#E41A1C"))+
     theme_bw(15)+
     facet_grid(.~facet_marker)+
     labs(y = trait_name,
@@ -389,7 +442,7 @@ if( nrow(pxg_df) > 0 ){
   
   plot_width_scale <- length(unique(pxg_df$facet_marker))
   
-  ggsave(filename = glue::glue("{trait_name}_pxgplot.pdf"),
+  ggsave(filename = glue::glue("{trait_name}_pxgplot.jpg"),
          height = 4, 
          width = 4*plot_width_scale, limitsize = FALSE)
 }

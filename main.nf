@@ -9,18 +9,18 @@ date = new Date().format( 'yyyyMMdd' )
 params.traitdir  = null
 params.traitfile = null
 params.vcf 		 = null
-params.p3d 		 = null
+params.p3d 		 = "FALSE"
 params.sthresh   = null
 params.freqUpper = 0.05
 params.minburden = 2
 params.refflat   = "bin/refFlat.ws245.txt"
 params.genes     = "bin/gene_ref_flat.Rda"
-params.cendr_v   = "20180527"
+params.cendr_v   = "null"
 params.e_mem 	 = "100"
 params.eigen_mem = params.e_mem + " GB"
 params.group_qtl = 1000
 params.ci_size   = 150
-params.fix_names = "fix"
+params.R_libpath = "/projects/b1059/software/R_lib_3.6.0"
 params.help 	 = null
 
 println()
@@ -210,7 +210,7 @@ process fix_strain_names_bulk {
 		file("Phenotyped_Strains.txt") into phenotyped_strains_to_analyze
 
 	"""
-		Rscript --vanilla `which Fix_Isotype_names_bulk.R` ${phenotypes} ${params.fix_names}
+		Rscript --vanilla `which Fix_Isotype_names_bulk_new.R` ${phenotypes} ${params.vcf}
 	"""
 
 }
@@ -287,7 +287,8 @@ process vcf_to_geno_matrix {
 
 geno_matrix
 	.into{eigen_gm;
-		  mapping_gm}
+		  mapping_gm;
+		  linkage_gm}
 
 
 /*
@@ -382,12 +383,14 @@ independent_tests
 
 process rrblup_maps {
 
+
+	module = 'R/3.6.0'
 	cpus 4
 
 	tag { TRAIT }
 
 	publishDir "${params.out}/Mappings/Data", mode: 'copy', pattern: "*processed_mapping.tsv"
-	publishDir "${params.out}/Mappings/Plots", mode: 'copy', pattern: "*.pdf"
+	publishDir "${params.out}/Mappings/Plots", mode: 'copy', pattern: "*plot.jpg"
 
 	
 
@@ -399,18 +402,23 @@ process rrblup_maps {
 	set val(TRAIT), file(geno), file(pheno) into processed_map_to_ld
 	file("*processed_mapping.tsv") into processed_map_to_summary_plot
 	set val(TRAIT), file("*processed_mapping.tsv") into pr_maps_trait
-	file("*.pdf") into gwas_plots
+	file("*.jpg") into gwas_plots
 
 	"""
 		tests=`cat independent_snvs.csv | grep -v inde`
 
-		Rscript --vanilla `which Run_Mappings.R` ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
+		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Run_Mappings.R > Run_Mappings.R
+
+		Rscript --vanilla Run_Mappings.R ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
 
 		if [ -e Rplots.pdf ]; then
     		rm Rplots.pdf
 		fi
 	"""
 }
+
+
+
 
 /*
 ------------ Generate GWAS QTL summary plot
@@ -421,8 +429,8 @@ process rrblup_maps {
 process summarize_maps {
 
 
-	publishDir "${params.out}/Mappings/Plots", mode: 'copy', pattern: "*mappings.pdf"
-	publishDir "${params.out}/Mappings/Data", mode: 'copy', pattern: "*_peaks.tsv"
+	publishDir "${params.out}/Mappings/summary", mode: 'copy', pattern: "*mappings.pdf"
+	publishDir "${params.out}/Mappings/summary", mode: 'copy', pattern: "*_peaks.tsv"
 
 	input:
 	file(maps) from processed_map_to_summary_plot.collect()
@@ -435,10 +443,10 @@ process summarize_maps {
 	"""
 		Rscript --vanilla `which Summarize_Mappings.R`
 
-		cat *processed_mapping.tsv |\\
+		cat  *processed_mapping.tsv |\\
 		awk '\$0 !~ "\\tNA\\t" {print}' |\\
-		awk '!seen[\$2,\$5,\$12,\$13,\$14]++' |\\
-		awk 'NR>1{print \$5, \$2, \$12, \$13, \$14}' OFS="\\t" > QTL_peaks.tsv
+		awk '!seen[\$2,\$4,\$5,\$11,\$12,\$13,\$14]++' |\\
+		awk 'NR>1{print \$5, \$2, \$12, \$13, \$14,\$4,\$11}' OFS="\\t" > QTL_peaks.tsv
 
 		sig_maps=`wc -l QTL_peaks.tsv | cut -f1 -d' '`
 
@@ -451,13 +459,58 @@ process summarize_maps {
 }
 
 
+
+
+
+pr_maps_trait
+  .into{ pr_maps_trait1 ; pr_maps_trait2 }
+
+pr_maps_trait1
+  .combine(linkage_gm)
+  .set{ linkage_input }
+
+/*
+------------ Generate linkage plot between QTL regions
+*/
+
+process LD_between_regions{
+
+module = 'R/3.6.0'
+executor 'local'
+
+  tag { TRAIT }
+
+  publishDir "${params.out}/Mappings/LD", mode: 'copy', pattern: "*_LD_*"
+
+  input:
+  set val(TRAIT), file("processed_mapping.tsv"), file("Genotype_Matrix.tsv") from linkage_input
+
+  output:
+  set val(TRAIT), file("*LD_between_QTL_regions.tsv") optional true into linkage_table
+  val(TRAIT) into linkage_done
+  set file("*.png") optional true into LD_plot
+
+  """
+
+    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/LD_between_regions_plot.R > LD_between_regions_plot.R 
+
+    Rscript --vanilla LD_between_regions_plot.R Genotype_Matrix.tsv processed_mapping.tsv ${TRAIT}
+
+  """
+}
+
+
+
+
+
+
 qtl_peaks
    .splitCsv(sep: '\t')
    .into{peaks;printpeaks}
 
 peaks
    .join(processed_map_to_ld)
-   .join(pr_maps_trait)
+   .join(pr_maps_trait2)
    .spread(vcf_to_fine_map)
    .spread(strain_list_finemap)
    .into{QTL_peaks; QTL_peaks_print}
@@ -481,7 +534,7 @@ process prep_ld_files {
 	tag {TRAIT}
 
 	input:
-		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(strains) from QTL_peaks
+		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), val(logPvalue), val(var_exp), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file(strains) from QTL_peaks
 
 	output:
 		set val(TRAIT), val(CHROM), val(start_pos), val(peak_pos), val(end_pos), file(complete_geno), file(phenotype), file(pr_map), file(vcf), file(index), file("*ROI_Genotype_Matrix.tsv"), file("*LD.tsv") into LD_files_to_plot
