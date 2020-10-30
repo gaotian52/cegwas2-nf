@@ -8,7 +8,7 @@ GWA mapping with C. elegans
 
 ## Required software packages that should be in users PATH
 
-1. [R-v3.4.1](https://www.r-project.org/)
+1. [R-v3.6.0](https://www.r-project.org/)
 1. [nextflow-v19.07.0](https://www.nextflow.io/docs/latest/getstarted.html)
 1. [BCFtools-v1.9](https://samtools.github.io/bcftools/bcftools.html)
 1. [plink-v1.9](https://www.cog-genomics.org/plink2)
@@ -141,3 +141,26 @@ Genotype_Matrix
 ##### Plots
 * `traitname_VTprice.pdf` - Genome-wide burden mapping manhattan plot for VTprice
 * `traitname_SKAT.pdf` - Genome-wide burden mapping manhattan plot for Skat
+
+
+# Mediation analysis
+
+## Required software packages that should be in users PATH
+1. [R-v3.6.0](https://www.r-project.org/)
+1. [R-MultiMed-v3.12](https://www.bioconductor.org/packages/release/bioc/html/MultiMed.html)
+1. [R-tidyverse-v1.2.1](https://www.tidyverse.org/)
+
+## different nf
+* `main_mediation.nf` - Mapping and Mediation. 
+* `mediation.nf` - Mediation on main.nf results.
+* `mediation_STDcegwas2.nf` - Mediation on standard cegwas2-nf results.
+
+#### Required mapping parameters for all nf 
+* `--transcripteQTL` - eQTL peak file
+* `--transcript_exp` - expression file, input of eQTL calling
+
+#### Required mapping parameters for mediation.nf and mediation_STDcegwas2.nf
+* `--traitfile` - 
+* `--cegwas2dir` -
+
+ 
