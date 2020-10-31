@@ -400,7 +400,6 @@ process rrblup_maps {
 	set file("independent_snvs.csv"), file(geno), val(TRAIT), file(pheno), val(P3D), val(sig_thresh), val(qtl_grouping_size), val(qtl_ci_size) from mapping_data
 
 	output:
-	file("*raw_mapping.tsv") into raw_map
 	set val(TRAIT), file(geno), file(pheno) into processed_map_to_ld
 	file("*processed_mapping.tsv") into processed_map_to_summary_plot
 	set val(TRAIT), file("*processed_mapping.tsv") into pr_maps_trait
@@ -409,9 +408,7 @@ process rrblup_maps {
 	"""
 		tests=`cat independent_snvs.csv | grep -v inde`
 
-		echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/Run_Mappings.R > Run_Mappings.R
-
-		Rscript --vanilla Run_Mappings.R ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
+		Rscript --vanilla `which Run_Mappings.R` ${geno} ${pheno} ${task.cpus} ${P3D} \$tests ${sig_thresh} ${qtl_grouping_size} ${qtl_ci_size}
 
 		if [ -e Rplots.pdf ]; then
     		rm Rplots.pdf
@@ -494,9 +491,7 @@ executor 'local'
 
   """
 
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/LD_between_regions_plot.R > LD_between_regions_plot.R 
-
-    Rscript --vanilla LD_between_regions_plot.R Genotype_Matrix.tsv processed_mapping.tsv ${TRAIT}
+	Rscript --vanilla `which LD_between_regions_plot.R` Genotype_Matrix.tsv processed_mapping.tsv ${TRAIT}
 
   """
 }
@@ -904,9 +899,7 @@ process multi_mediate {
 		
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/multi_mediation.R  > multi_mediation.R 
-
-    Rscript --vanilla multi_mediation.R ${geno} ${texpression} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_eqtl}
+    Rscript --vanilla `which multi_mediation.R` ${geno} ${texpression} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_eqtl}
 
 	"""
 }

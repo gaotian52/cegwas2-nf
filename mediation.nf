@@ -198,9 +198,7 @@ process multi_mediate {
 		
 
 	"""
-    echo ".libPaths(c(\\"${params.R_libpath}\\", .libPaths() ))" | cat - ${workflow.projectDir}/bin/multi_mediation.R  > multi_mediation.R 
-
-    Rscript --vanilla multi_mediation.R ${geno} ${texpression} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_eqtl}
+    Rscript --vanilla `which multi_mediation.R` ${geno} ${texpression} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_eqtl}
 
 	"""
 }
