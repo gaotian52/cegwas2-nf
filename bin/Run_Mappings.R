@@ -1,3 +1,4 @@
+.libPaths(c("/projects/b1059/software/R_lib_3.6.0", .libPaths() ))
 #!/usr/bin/env Rscript
 library(tidyverse)
 library(rrBLUP)
@@ -373,22 +374,9 @@ raw_mapping <- gwa_mapping(data = phenotype_data,
                         kin_matrix = kinship_matrix)
 
 # save mapping data set
-readr::write_tsv(raw_mapping, 
-                 path = glue::glue("{trait_name}_raw_mapping.tsv"),
-                 col_names = T)
-
-# process mapping data, define QTL
-processed_mapping <- process_mapping_df(raw_mapping, 
-                                        phenotype_data, 
-                                        CI_size = as.numeric(args[8]), 
-                                        snp_grouping = as.numeric(args[7]), 
-                                        BF = QTL_cutoff,
-                                        geno = genotype_matrix)
-
-# save processed mapping data
-readr::write_tsv(processed_mapping, 
-                 path = glue::glue("{trait_name}_processed_mapping.tsv"),
-                 col_names = T)
+#readr::write_tsv(raw_mapping, 
+    #             path = glue::glue("{trait_name}_raw_mapping.tsv"),
+  #               col_names = T)
 
 
 
@@ -401,6 +389,25 @@ pheno_h2 <- narrowh2(df_h=phenotype_data,geno_matrix=genotype_matrix)
 
 nh2=round(as.numeric(pheno_h2$h2),digits = 2)
 
+
+
+# process mapping data, define QTL
+processed_mapping <- process_mapping_df(raw_mapping, 
+                                        phenotype_data, 
+                                        CI_size = as.numeric(args[8]), 
+                                        snp_grouping = as.numeric(args[7]), 
+                                        BF = QTL_cutoff,
+                                        geno = genotype_matrix)
+
+
+
+processed_mapping_data <- processed_mapping %>% dplyr::mutate(h2=nh2)
+
+
+# save processed mapping data
+readr::write_tsv(processed_mapping_data, 
+                 path = glue::glue("{trait_name}_processed_mapping.tsv"),
+                 col_names = T)
 
 
 

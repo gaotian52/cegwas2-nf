@@ -1,3 +1,4 @@
+.libPaths(c("/projects/b1059/software/R_lib_3.6.0", .libPaths() ))
 library(genetics) 
 library(tidyverse)
 

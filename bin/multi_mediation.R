@@ -1,3 +1,5 @@
+.libPaths(c("/projects/b1059/software/R_lib_3.6.0", .libPaths() ))
+
 #!/usr/bin/env Rscript
 
 library(tidyverse)
