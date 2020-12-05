@@ -402,6 +402,7 @@ process rrblup_maps {
 	file("*processed_mapping.tsv") into processed_map_to_summary_plot
 	set val(TRAIT), file("*processed_mapping.tsv") into pr_maps_trait
 	file("*.jpg") into gwas_plots
+	file("*positive_mapping.tsv") into processed_haplotype_plot
 
 	"""
 		tests=`cat independent_snvs.csv | grep -v inde`
@@ -789,6 +790,81 @@ process plot_burden {
 		Rscript --vanilla `which plot_burden.R` ${TRAIT} ${skat} ${vt}
 	"""
 }
+
+
+
+
+
+params.haplotypes = "${workflow.projectDir}/bin/swept_haplotype_1123.bed"
+
+haplos = Channel.fromPath("${params.haplotypes}")
+
+haplos
+.set{haplotype_handle}
+
+
+
+params.NJorder = "${workflow.projectDir}/bin/NJ_403isotype_order.tsv"
+
+NJorders = Channel.fromPath("${params.NJorder}")
+
+NJorders
+.set{NJorders_handle}
+
+
+
+
+params.sweptgeno = "${workflow.projectDir}/bin/swept_chr_count.tsv"
+
+sweptgenos = Channel.fromPath("${params.sweptgeno}")
+
+sweptgenos
+.set{sweptgenotype}
+
+
+
+
+
+
+/*
+------------ Haplotype in each QTL
+*/
+
+process QTL_haplotype {
+
+
+	
+	cpus 1
+
+
+	publishDir "${params.out}/Mappings/QTLhaplotype", mode: 'copy', pattern: "*_qtl_haplotype.*"
+
+	
+
+	input:
+	file(positive_qtl) from processed_haplotype_plot
+	file(haplotype) from haplotype_handle
+	file(NJfile) from NJorders_handle
+	file(swept_iso) from sweptgenotype
+
+	output:
+
+	file("*_qtl_haplotype.png") into hap_plots
+	file("*.tsv") into hap_filess
+
+
+	"""
+
+	
+		Rscript --vanilla `which haplotype_region_plot.R` ${positive_qtl}
+
+	"""
+}
+
+
+
+
+
 
 
 /*

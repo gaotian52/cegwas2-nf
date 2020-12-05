@@ -193,7 +193,7 @@ process multi_mediate {
 
 
 	output:
-		file("${TRAIT}_${tch}_${tpeak}_med.tsv") into result_mediate
+		file("${TRAIT}_${tch}_${tpeak}_med.tsv") optional true into result_mediate
 
 		
 

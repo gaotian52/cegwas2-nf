@@ -430,6 +430,10 @@ if( nrow(pxg_df) > 0 ){
     dplyr::mutate(facet_marker = paste0(CHROM, ":", peakPOS)) %>%
     dplyr::distinct(marker, strain, allele, .keep_all = T)
   
+  readr::write_tsv(pxg_df, 
+                   path = glue::glue("{trait_name}_positive_mapping.tsv"),
+                   col_names = T)
+  
   pxg_df %>%
     ggplot()+
     aes(x=factor(as.character(allele),labels = c("REF","ALT")), y = value, fill = factor(as.character(allele),labels = c("REF","ALT")))+

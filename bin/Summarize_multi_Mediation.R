@@ -59,7 +59,7 @@ med_plt <- ggplot(med_transcript) +
   scale_alpha_continuous(range = c(1, 0.1)) +  
   scale_color_manual(values = c("distant"="gray69","local"="gold2"))+
   theme_bw(10) + 
- # facet_grid(Threshold~gwas_qtl, scales = "free_x") +
+   facet_grid(gwtrait~e_chr, scales = "free_x") +
   theme(plot.title = element_text(hjust = 0.1, size=12),
         legend.text = element_text(size=12),
         legend.title =  element_text(size=12),

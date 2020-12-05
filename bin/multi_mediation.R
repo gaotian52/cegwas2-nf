@@ -88,6 +88,8 @@ t_lgmtpm_gwas <- texpression_pheno %>%
   dplyr::arrange(strain)  %>% 
   dplyr::select(-strain)
 
+if( length(unique(gwas_g$geno)) == 2 ){
+  
 #pick transcripts with variation in expression
 t_lgmtpm_gwas_vari <- t_lgmtpm_gwas[vapply(t_lgmtpm_gwas, function(x) length(unique(x)) > 1, logical(1L))]
 
@@ -114,3 +116,5 @@ df_multi_med <- df_multi_transcript2 %>%
 readr::write_tsv(df_multi_med, 
                  path = glue::glue("{gwtrait}_{gwas_intchr}_{gwas_peak}_med.tsv"),
                  col_names = T)
+
+}
