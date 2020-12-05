@@ -164,3 +164,12 @@ Genotype_Matrix
 * `--cegwas2dir` -
 
  
+# Permutated_FDR.nf
+1. Randomly sample 1 trait from trait file 
+1. Permutate the trait for 200 times
+1. Run EMMA mapping with BF and EIGEN, respectively
+1. Among all the -log10P that passed the threshold, get the 5% FDR
+
+# main_eQTL.nf
+* Call expression QTL with EMMA and draw eQTL map
+* `--pos` - transcript or gene positions in the genome
