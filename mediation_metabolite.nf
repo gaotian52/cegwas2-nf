@@ -11,8 +11,8 @@ params.vcf 		 = null
 params.R_libpath = "/projects/b1059/software/R_lib_3.6.0"
 params.help 	 = null
 params.cegwas2dir = null
-params.transcripteQTL = null
-params.transcript_exp = null
+params.metaboliteQTL = null
+params.metabolite_mzrt = null
 
 println()
 
@@ -20,7 +20,7 @@ println()
 ~ ~ ~ > * OUTPUT DIRECTORY 
 */
 
-params.out = "${params.cegwas2dir}/mediation-${date}"
+params.out = "${params.cegwas2dir}/mediation_metabolite-${date}"
 
 
 
@@ -34,8 +34,8 @@ log.info ""
 log.info ""
 log.info "Result Directory                        = ${params.out}"
 log.info "cegwas2-nf result directory             = ${params.cegwas2dir}"
-log.info "eQTL with var_exp ≥ 0.05                = ${params.transcripteQTL}"
-log.info "Input expression data of eQTL calling   = ${params.transcript_exp}"
+log.info "eQTL with var_exp ≥ 0.05                = ${params.metaboliteQTL}"
+log.info "Input expression data of eQTL calling   = ${params.metabolite_mzrt}"
 log.info ""
 
 
@@ -110,15 +110,17 @@ mediate_peaks
 ~ ~ ~ > * INITIATE eQTL CHANNEL 
 */
 
-File transcripteqtl_all = new File("${params.transcripteQTL}")
-transcripteqtl_all_handle = transcripteqtl_all.getAbsolutePath()
+File metaboliteqtl_all = new File("${params.metaboliteQTL}")
+metaboliteqtl_all_handle = metaboliteqtl_all.getAbsolutePath()
 
 
 
 
 process mediate_data {
 
-	executor 'local'
+
+	cpus 1
+	memory '2 GB'
 
 	tag {TRAIT}
 
@@ -127,14 +129,13 @@ process mediate_data {
 		set val(TRAIT),val(tch),val(tstart),val(tpeak),val(tend),val(logPvalue), val(var_exp), file(t_file) from medQTL_peaks
 
 	output:
-		set val(TRAIT),val(tch),val(tpeak),val(tstart),val(tend), file("${TRAIT}_scaled_mapping.tsv"),file("${TRAIT}_${tch}_${tpeak}_eqtl.tsv") into QTL_phe
+		set val(TRAIT),val(tch),val(tpeak),val(tstart),val(tend), file("${TRAIT}_scaled_mapping.tsv"),file("${TRAIT}_${tch}_${tpeak}_mqtl.tsv") optional true into QTL_phe
 
-		file("${TRAIT}_${tch}_${tpeak}_elist.tsv") 
 
 	"""
 
 
-    Rscript --vanilla `which mediate.R` ${TRAIT} ${t_file} ${tch} ${tstart} ${tend} ${tpeak} ${transcripteqtl_all_handle}
+    Rscript --vanilla `which mediate_m.R` ${TRAIT} ${t_file} ${tch} ${tstart} ${tend} ${tpeak} ${metaboliteqtl_all_handle}
 
 	"""
 }
@@ -151,8 +152,8 @@ process mediate_data {
 */
 
 Channel
-	.fromPath("${params.transcript_exp}")
-	.set{ transcript_exp_file }
+	.fromPath("${params.metabolite_mzrt}")
+	.set{ mzrt_file }
 
 
 
@@ -166,7 +167,7 @@ Channel
 
 QTL_phe
 .spread(med_gm)
-.spread(transcript_exp_file)
+.spread(mzrt_file)
 .into{Gpeak_egene; Gpeak_egene_print}
 
 
@@ -174,6 +175,8 @@ QTL_phe
 
 
 process multi_mediate {
+
+
 
 	
 	module = 'R/3.6.0'
@@ -188,7 +191,7 @@ process multi_mediate {
 	errorStrategy 'retry'
 
 	input:
-		set val(TRAIT),val(tch),val(tpeak), val(tstart),val(tend), file(pheno), file(tr_eqtl), file(geno), file(texpression) from Gpeak_egene
+		set val(TRAIT),val(tch),val(tpeak), val(tstart),val(tend), file(pheno), file(tr_mqtl), file(geno), file(mzrt) from Gpeak_egene
 
 
 	output:
@@ -197,7 +200,7 @@ process multi_mediate {
 		
 
 	"""
-    Rscript --vanilla `which multi_mediation.R` ${geno} ${texpression} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_eqtl}
+    Rscript --vanilla `which multi_mediation_m.R` ${geno} ${mzrt} ${pheno} ${tch} ${tpeak} ${TRAIT} ${tr_mqtl}
 
 	"""
 }
@@ -208,13 +211,6 @@ process multi_mediate {
 
 
 
-
-
-
-params.WS_t2g = "/projects/b1059/projects/Gaotian/resource/WS276/WS276_t2g_all.tsv"
-
-File t2g = new File("${params.WS_t2g}")
-t2g_handle = t2g.getAbsolutePath()
 
 
 
@@ -240,7 +236,7 @@ process multi_summarize_mediate {
 		uniq  > mediation_analysis.tsv
 
 
-	Rscript --vanilla `which Summarize_multi_Mediation.R` mediation_analysis.tsv ${t2g_handle}
+	Rscript --vanilla `which Summarize_multi_Mediation_m.R` mediation_analysis.tsv 
 		
 		
 
